@@ -1,27 +1,32 @@
 package main
 
 import (
-    "fmt"
     "log"
-    "net/http"
+    "net"
     "os"
     
-    httphandler "tech-ip-sem2/services/auth/internal/http"
+    "google.golang.org/grpc"
+    
+    pb "tech-ip-sem2-grpc/proto"
+    authgrpc "tech-ip-sem2-grpc/services/auth/internal/grpc"
 )
 
 func main() {
-    port := os.Getenv("AUTH_PORT")
-    if port == "" {
-        port = "8089"
+    grpcPort := os.Getenv("AUTH_GRPC_PORT")
+    if grpcPort == "" {
+        grpcPort = "50051"
     }
     
-    handler := httphandler.NewAuthHandler()
-    router := httphandler.NewRouter(handler)
+    lis, err := net.Listen("tcp", ":"+grpcPort)
+    if err != nil {
+        log.Fatalf("failed to listen: %v", err)
+    }
     
-    addr := fmt.Sprintf(":%s", port)
-    log.Printf("Auth service starting on port %s", port)
+    s := grpc.NewServer()
+    pb.RegisterAuthServiceServer(s, &authgrpc.AuthServer{})
     
-    if err := http.ListenAndServe(addr, router); err != nil {
-        log.Fatalf("Failed to start auth service: %v", err)
+    log.Printf("Auth gRPC server starting on port %s", grpcPort)
+    if err := s.Serve(lis); err != nil {
+        log.Fatalf("failed to serve: %v", err)
     }
 }

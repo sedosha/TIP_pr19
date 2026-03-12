@@ -15,8 +15,6 @@
 *.out
 
 # Go workspace files
-*.mod
-*.sum
 go.sum
 
 # IDE

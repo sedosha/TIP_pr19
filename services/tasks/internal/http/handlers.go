@@ -8,8 +8,8 @@ import (
     
     "github.com/go-chi/chi/v5"
     "github.com/google/uuid"
-    "tech-ip-sem2/services/tasks/internal/service"
-    "tech-ip-sem2/shared/middleware"
+    "tech-ip-sem2-grpc/services/tasks/internal/service"
+    "tech-ip-sem2-grpc/shared/middleware"
 )
 
 type TaskHandler struct {

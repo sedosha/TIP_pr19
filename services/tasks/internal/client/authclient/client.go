@@ -7,7 +7,7 @@ import (
     "net/http"
     "time"
     
-    "tech-ip-sem2/shared/middleware"
+    "tech-ip-sem2-grpc/shared/middleware"
 )
 
 type AuthClient struct {

@@ -5,8 +5,8 @@ import (
     "net/http"
     "strings"
     
-    "tech-ip-sem2/services/auth/internal/service"
-    "tech-ip-sem2/shared/middleware"
+    "tech-ip-sem2-grpc/services/auth/internal/service"
+    "tech-ip-sem2-grpc/shared/middleware"
 )
 
 type AuthHandler struct{}

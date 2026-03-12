@@ -4,7 +4,7 @@ import (
     "net/http"
     
     "github.com/go-chi/chi/v5"
-    "tech-ip-sem2/shared/middleware"
+    "tech-ip-sem2-grpc/shared/middleware"
 )
 
 func NewRouter(handler *AuthHandler) http.Handler {
