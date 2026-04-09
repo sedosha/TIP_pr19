@@ -2,15 +2,24 @@ package main
 
 import (
     "fmt"
-    "log"
     "net/http"
     "os"
     
-    "tech-ip-sem2-grpc/services/tasks/internal/grpcclient"
-    httphandler "tech-ip-sem2-grpc/services/tasks/internal/http"
+    "go.uber.org/zap"
+    
+    "tech-ip-pz3-logging/services/tasks/internal/grpcclient"
+    httphandler "tech-ip-pz3-logging/services/tasks/internal/http"
+    "tech-ip-pz3-logging/shared/middleware"
+    applogger "tech-ip-pz3-logging/pkg/logger"
 )
 
 func main() {
+    zapLogger, err := applogger.New()
+    if err != nil {
+        panic(err)
+    }
+    defer zapLogger.Sync()
+    
     port := os.Getenv("TASKS_PORT")
     if port == "" {
         port = "8090"
@@ -19,23 +28,27 @@ func main() {
     grpcAddr := os.Getenv("AUTH_GRPC_ADDR")
     if grpcAddr == "" {
         grpcAddr = "localhost:50051"
-        log.Printf("Using default gRPC address: %s", grpcAddr)
+        zapLogger.Info("using default gRPC address", zap.String("addr", grpcAddr))
     }
     
     authClient, err := grpcclient.NewAuthGRPCClient(grpcAddr)
     if err != nil {
-        log.Fatalf("Failed to create auth gRPC client: %v", err)
+        zapLogger.Fatal("failed to create auth gRPC client", zap.Error(err))
     }
     defer authClient.Close()
     
-    handler := httphandler.NewTaskHandler()
-    router := httphandler.NewRouter(handler, authClient)
+    handler := httphandler.NewTaskHandler(zapLogger)
+    router := httphandler.NewRouter(handler, authClient, zapLogger)
+    
+    rootHandler := middleware.ZapLoggingMiddleware(zapLogger, router)
     
     addr := fmt.Sprintf(":%s", port)
-    log.Printf("Tasks service starting on port %s", port)
-    log.Printf("Auth gRPC address: %s", grpcAddr)
+    zapLogger.Info("Tasks service starting",
+        zap.String("port", port),
+        zap.String("grpc_addr", grpcAddr),
+    )
     
-    if err := http.ListenAndServe(addr, router); err != nil {
-        log.Fatalf("Failed to start tasks service: %v", err)
+    if err := http.ListenAndServe(addr, rootHandler); err != nil {
+        zapLogger.Fatal("failed to start tasks service", zap.Error(err))
     }
 }

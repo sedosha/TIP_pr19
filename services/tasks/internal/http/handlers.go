@@ -8,18 +8,22 @@ import (
     
     "github.com/go-chi/chi/v5"
     "github.com/google/uuid"
-    "tech-ip-sem2-grpc/services/tasks/internal/service"
-    "tech-ip-sem2-grpc/shared/middleware"
+    "go.uber.org/zap"
+    
+    "tech-ip-pz3-logging/services/tasks/internal/service"
+    "tech-ip-pz3-logging/shared/middleware"
 )
 
 type TaskHandler struct {
     mu    sync.RWMutex
     tasks map[string]service.Task
+    log   *zap.Logger
 }
 
-func NewTaskHandler() *TaskHandler {
+func NewTaskHandler(log *zap.Logger) *TaskHandler {
     return &TaskHandler{
         tasks: make(map[string]service.Task),
+        log:   log,
     }
 }
 
@@ -28,11 +32,18 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
     
     var req service.CreateTaskRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        h.log.Warn("invalid request format",
+            zap.String("request_id", requestID),
+            zap.Error(err),
+        )
         http.Error(w, `{"error":"invalid request format"}`, http.StatusBadRequest)
         return
     }
     
     if req.Title == "" {
+        h.log.Warn("title is required",
+            zap.String("request_id", requestID),
+        )
         http.Error(w, `{"error":"title is required"}`, http.StatusBadRequest)
         return
     }
@@ -52,6 +63,12 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
     
     h.tasks[id] = task
     
+    h.log.Info("task created",
+        zap.String("request_id", requestID),
+        zap.String("task_id", id),
+        zap.String("title", req.Title),
+    )
+    
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("X-Request-ID", requestID)
     w.WriteHeader(http.StatusCreated)
@@ -69,6 +86,11 @@ func (h *TaskHandler) GetAllTasks(w http.ResponseWriter, r *http.Request) {
         tasks = append(tasks, task)
     }
     
+    h.log.Debug("all tasks retrieved",
+        zap.String("request_id", requestID),
+        zap.Int("count", len(tasks)),
+    )
+    
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("X-Request-ID", requestID)
     json.NewEncoder(w).Encode(tasks)
@@ -83,9 +105,18 @@ func (h *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
     
     task, exists := h.tasks[id]
     if !exists {
+        h.log.Warn("task not found",
+            zap.String("request_id", requestID),
+            zap.String("task_id", id),
+        )
         http.Error(w, `{"error":"task not found"}`, http.StatusNotFound)
         return
     }
+    
+    h.log.Debug("task retrieved",
+        zap.String("request_id", requestID),
+        zap.String("task_id", id),
+    )
     
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("X-Request-ID", requestID)
@@ -98,6 +129,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
     
     var req service.UpdateTaskRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        h.log.Warn("invalid request format",
+            zap.String("request_id", requestID),
+            zap.Error(err),
+        )
         http.Error(w, `{"error":"invalid request format"}`, http.StatusBadRequest)
         return
     }
@@ -107,6 +142,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
     
     task, exists := h.tasks[id]
     if !exists {
+        h.log.Warn("task not found for update",
+            zap.String("request_id", requestID),
+            zap.String("task_id", id),
+        )
         http.Error(w, `{"error":"task not found"}`, http.StatusNotFound)
         return
     }
@@ -123,6 +162,11 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
     
     h.tasks[id] = task
     
+    h.log.Info("task updated",
+        zap.String("request_id", requestID),
+        zap.String("task_id", id),
+    )
+    
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("X-Request-ID", requestID)
     json.NewEncoder(w).Encode(task)
@@ -136,11 +180,20 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
     defer h.mu.Unlock()
     
     if _, exists := h.tasks[id]; !exists {
+        h.log.Warn("task not found for delete",
+            zap.String("request_id", requestID),
+            zap.String("task_id", id),
+        )
         http.Error(w, `{"error":"task not found"}`, http.StatusNotFound)
         return
     }
     
     delete(h.tasks, id)
+    
+    h.log.Info("task deleted",
+        zap.String("request_id", requestID),
+        zap.String("task_id", id),
+    )
     
     w.Header().Set("X-Request-ID", requestID)
     w.WriteHeader(http.StatusNoContent)

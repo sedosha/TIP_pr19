@@ -6,7 +6,7 @@ import (
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
     
-    pb "tech-ip-sem2-grpc/proto"
+    pb "tech-ip-pz3-logging/proto"
 )
 
 type AuthServer struct {

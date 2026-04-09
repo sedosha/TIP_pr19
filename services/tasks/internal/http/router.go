@@ -4,23 +4,25 @@ import (
     "net/http"
     
     "github.com/go-chi/chi/v5"
-    "tech-ip-sem2-grpc/services/tasks/internal/grpcclient"
-    "tech-ip-sem2-grpc/shared/middleware"
+    "go.uber.org/zap"
+    
+    "tech-ip-pz3-logging/services/tasks/internal/grpcclient"
+    "tech-ip-pz3-logging/shared/middleware"
 )
 
-func NewRouter(handler *TaskHandler, authClient *grpcclient.AuthGRPCClient) http.Handler {
+func NewRouter(handler *TaskHandler, authClient *grpcclient.AuthGRPCClient, log *zap.Logger) http.Handler {
     r := chi.NewRouter()
     
     r.Use(middleware.RequestIDMiddleware)
-    r.Use(middleware.LoggingMiddleware)
     
     r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+        log.Debug("health check called")
         w.Header().Set("Content-Type", "application/json")
         w.Write([]byte(`{"status":"ok","service":"tasks"}`))
     })
     
     r.Route("/v1/tasks", func(r chi.Router) {
-        r.Use(AuthGRPCMiddleware(authClient))
+        r.Use(AuthGRPCMiddleware(authClient, log))
         
         r.Post("/", handler.CreateTask)
         r.Get("/", handler.GetAllTasks)

@@ -6,12 +6,20 @@ import (
     "os"
     
     "google.golang.org/grpc"
+    "go.uber.org/zap"
     
-    pb "tech-ip-sem2-grpc/proto"
-    authgrpc "tech-ip-sem2-grpc/services/auth/internal/grpc"
+    pb "tech-ip-pz3-logging/proto"
+    authgrpc "tech-ip-pz3-logging/services/auth/internal/grpc"
+    applogger "tech-ip-pz3-logging/pkg/logger"
 )
 
 func main() {
+    zapLogger, err := applogger.New()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer zapLogger.Sync()
+    
     grpcPort := os.Getenv("AUTH_GRPC_PORT")
     if grpcPort == "" {
         grpcPort = "50051"
@@ -19,14 +27,17 @@ func main() {
     
     lis, err := net.Listen("tcp", ":"+grpcPort)
     if err != nil {
-        log.Fatalf("failed to listen: %v", err)
+        zapLogger.Fatal("failed to listen", zap.Error(err))
     }
     
     s := grpc.NewServer()
     pb.RegisterAuthServiceServer(s, &authgrpc.AuthServer{})
     
-    log.Printf("Auth gRPC server starting on port %s", grpcPort)
+    zapLogger.Info("Auth gRPC server starting",
+        zap.String("port", grpcPort),
+    )
+    
     if err := s.Serve(lis); err != nil {
-        log.Fatalf("failed to serve: %v", err)
+        zapLogger.Fatal("failed to serve", zap.Error(err))
     }
 }

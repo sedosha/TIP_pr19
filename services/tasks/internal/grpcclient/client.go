@@ -9,8 +9,7 @@ import (
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
     
-    pb "tech-ip-sem2-grpc/proto"
-    "tech-ip-sem2-grpc/shared/middleware"
+    pb "tech-ip-pz3-logging/proto"
 )
 
 type AuthGRPCClient struct {
@@ -38,19 +37,17 @@ func (c *AuthGRPCClient) Close() {
 }
 
 func (c *AuthGRPCClient) VerifyToken(ctx context.Context, token string) (bool, string, error) {
-    requestID := middleware.GetRequestID(ctx)
+    if token == "" {
+        return false, "", fmt.Errorf("empty token")
+    }
     
     ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
     defer cancel()
-    
-    fmt.Printf("[%s] Calling gRPC verify with token: %s\n", requestID, token)
     
     resp, err := c.client.Verify(ctx, &pb.VerifyRequest{Token: token})
     if err != nil {
         st, ok := status.FromError(err)
         if ok {
-            fmt.Printf("[%s] gRPC error: %s (code: %v)\n", requestID, st.Message(), st.Code())
-            
             if st.Code() == codes.Unauthenticated {
                 return false, "", nil
             }
@@ -60,9 +57,6 @@ func (c *AuthGRPCClient) VerifyToken(ctx context.Context, token string) (bool, s
         }
         return false, "", fmt.Errorf("auth service error: %w", err)
     }
-    
-    fmt.Printf("[%s] gRPC response: valid=%v, subject=%s\n", 
-        requestID, resp.Valid, resp.Subject)
     
     return resp.Valid, resp.Subject, nil
 }
